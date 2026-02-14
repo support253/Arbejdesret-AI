@@ -1,3 +1,4 @@
+
 export interface EmployeeData {
   name: string;
   title: string;
@@ -27,6 +28,15 @@ export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   timestamp: number;
+  sources?: { title: string; uri: string }[];
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  updatedAt: number;
+  topic?: string;
 }
 
 export enum LoadingState {

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { ShieldCheck, FileText, MessageSquare, ScanText, Menu, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, FileText, MessageSquare, ScanText, Menu, X, RefreshCw } from 'lucide-react';
 import { TerminationWizard } from './components/TerminationWizard';
 import { ClauseAnalyzer } from './components/ClauseAnalyzer';
 import { LegalChat } from './components/LegalChat';
+import { fetchLegalNews, LegalNewsItem } from './services/geminiService';
 
 enum View {
   DASHBOARD = 'DASHBOARD',
@@ -149,57 +150,98 @@ interface DashboardProps {
   onViewChange: (view: View) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => (
-  <div className="max-w-6xl mx-auto">
-    <div className="mb-8">
-      <h2 className="text-2xl font-bold text-slate-800">Velkommen tilbage</h2>
-      <p className="text-slate-600 mt-2">Vælg en compliance-opgave for at starte agenten.</p>
-    </div>
+const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
+  const [news, setNews] = useState<LegalNewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <ActionCard 
-        title="Generer Opsigelse"
-        description="Opret juridisk gyldige opsigelsesbreve baseret på Funktionærloven. Inkluderer beregning af varsel."
-        icon={<FileText className="w-8 h-8 text-blue-500" />}
-        onClick={() => onViewChange(View.TERMINATION)}
-        color="border-l-blue-500"
-      />
-      <ActionCard 
-        title="Analyser Overenskomst"
-        description="Upload et billede af en kontraktklausul. Agenten udtrækker tekst og analyserer forpligtelser."
-        icon={<ScanText className="w-8 h-8 text-purple-500" />}
-        onClick={() => onViewChange(View.ANALYZER)}
-        color="border-l-purple-500"
-      />
-      <ActionCard 
-        title="Juridisk Chat"
-        description="Stil spørgsmål om ferielov, barsel eller persondataforordningen (GDPR)."
-        icon={<MessageSquare className="w-8 h-8 text-emerald-500" />}
-        onClick={() => onViewChange(View.CHAT)}
-        color="border-l-emerald-500"
-      />
-    </div>
+  useEffect(() => {
+    const loadNews = async () => {
+      try {
+        const data = await fetchLegalNews();
+        if (data && data.length > 0) {
+          setNews(data);
+        } else {
+          // Fallback if search returns nothing useful or empty
+          setNews([
+            { date: 'IDAG', title: 'Ingen nye større lovændringer fundet', tag: 'Status', summary: 'Systemet scannede retskilder uden resultat.' }
+          ]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch news", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadNews();
+  }, []);
 
-    <div className="mt-10 p-6 bg-white rounded-xl shadow-sm border border-slate-200">
-      <h3 className="font-semibold text-slate-800 mb-4">Seneste Lovændringer (Simuleret Feed)</h3>
-      <div className="space-y-4">
-        {[
-          { date: '15. okt', title: 'Nye regler for registrering af arbejdstid', tag: 'EU Direktiv' },
-          { date: '01. okt', title: 'Opdatering af satser for kørselsfradrag', tag: 'Skat' },
-          { date: '28. sep', title: 'Præcisering af regler om 6. ferieuge i Industriens Overenskomst', tag: 'Overenskomst' }
-        ].map((news, i) => (
-          <div key={i} className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
-             <div>
-               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{news.date}</span>
-               <h4 className="text-sm font-medium text-slate-700 mt-1">{news.title}</h4>
-             </div>
-             <span className="px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600">{news.tag}</span>
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-slate-800">Velkommen tilbage</h2>
+        <p className="text-slate-600 mt-2">Vælg en compliance-opgave for at starte agenten.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <ActionCard 
+          title="Generer Opsigelse"
+          description="Opret juridisk gyldige opsigelsesbreve baseret på Funktionærloven. Inkluderer beregning af varsel."
+          icon={<FileText className="w-8 h-8 text-blue-500" />}
+          onClick={() => onViewChange(View.TERMINATION)}
+          color="border-l-blue-500"
+        />
+        <ActionCard 
+          title="Analyser Overenskomst"
+          description="Upload et billede af en kontraktklausul. Agenten udtrækker tekst og analyserer forpligtelser."
+          icon={<ScanText className="w-8 h-8 text-purple-500" />}
+          onClick={() => onViewChange(View.ANALYZER)}
+          color="border-l-purple-500"
+        />
+        <ActionCard 
+          title="Juridisk Chat"
+          description="Stil spørgsmål om ferielov, barsel eller persondataforordningen (GDPR)."
+          icon={<MessageSquare className="w-8 h-8 text-emerald-500" />}
+          onClick={() => onViewChange(View.CHAT)}
+          color="border-l-emerald-500"
+        />
+      </div>
+
+      <div className="mt-10 p-6 bg-white rounded-xl shadow-sm border border-slate-200 min-h-[200px]">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-slate-800">Seneste Lovændringer (Live)</h3>
+          {loading && <RefreshCw className="w-4 h-4 text-slate-400 animate-spin" />}
+        </div>
+        
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="animate-pulse flex items-center justify-between py-3 border-b border-slate-100">
+                <div className="w-2/3">
+                  <div className="h-3 bg-slate-200 rounded w-16 mb-2"></div>
+                  <div className="h-4 bg-slate-200 rounded w-full"></div>
+                </div>
+                <div className="h-6 bg-slate-200 rounded w-20"></div>
+              </div>
+            ))}
           </div>
-        ))}
+        ) : (
+          <div className="space-y-4">
+            {news.map((item, i) => (
+              <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 border-b border-slate-100 last:border-0 gap-2">
+                 <div>
+                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.date}</span>
+                   <h4 className="text-sm font-medium text-slate-700 mt-1">{item.title}</h4>
+                   {item.summary && <p className="text-xs text-slate-500 mt-1 line-clamp-1">{item.summary}</p>}
+                 </div>
+                 <span className="px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600 self-start sm:self-center shrink-0">{item.tag}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 interface ActionCardProps {
   title: string;
