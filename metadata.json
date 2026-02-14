@@ -1,0 +1,5 @@
+{
+  "name": "Arbejdsret-Eksperten",
+  "description": "An AI-powered HR compliance agent specializing in Danish Labor Law. Generates termination documents, analyzes collective agreements from images, and provides expert legal counsel.",
+  "requestFramePermissions": []
+}
